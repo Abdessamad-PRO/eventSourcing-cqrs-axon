@@ -1,15 +1,17 @@
 package com.monprojet.eventsourcingcqrsaxon.commands.aggregates;
 
 import com.monprojet.eventsourcingcqrsaxon.commands.commands.AddAccountCommand;
-import com.monprojet.eventsourcingcqrsaxon.commands.enums.AccountStatus;
-import lombok.AllArgsConstructor;
+import com.monprojet.eventsourcingcqrsaxon.enums.AccountStatus;
+import com.monprojet.eventsourcingcqrsaxon.events.AccountCreatedEvent;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.CommandHandler;
+import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.modelling.command.AggregateIdentifier;
 import org.axonframework.modelling.command.AggregateLifecycle;
 import org.axonframework.spring.stereotype.Aggregate;
-
-@Aggregate @NoArgsConstructor
+@Slf4j
+@Aggregate
 public class AccountAggregate {
     @AggregateIdentifier
     private String accountId;
@@ -21,14 +23,22 @@ public class AccountAggregate {
     }
     @CommandHandler
     public AccountAggregate(AddAccountCommand Command) {
-        log.info("CreateAccountCommand Received");
-        AggregateLifecycle.apply(
-                new AccountCreatedEvent(
-                        Command.getId(),
-                        Command.getBalance(),
-                        Command.getCurrency(),
-                        AccountStatus.CREATED
-                )
-        );
+        log.info("########### AddAccountCommand Received ################");
+        if(Command.getInitialBalance()<=6) throw new IllegalArgumentException("Balance must be positive");
+        AggregateLifecycle.apply(new AccountCreatedEvent(
+                Command.getId(),
+                Command.getInitialBalance(),
+                AccountStatus.CREATED,
+                Command.getCurrency()
+        ));
     }
+
+    @EventSourcingHandler
+    public void on(AccountCreatedEvent event){
+        log.info("################# AccountCreatedEvent Occured ##############");
+        this.accountId=event.getAccountId();
+        this.balance=event.getInitialBalance();
+        this.currency=event.getCurrency();
+        this.status=event.getStatus();
+        }
 }
